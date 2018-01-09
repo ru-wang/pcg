@@ -1,11 +1,13 @@
 #include <assert.h>
 
+#include <chrono>
 #include <iostream>
 #include <string>
 #include <tuple>
 
 #include <Eigen/Eigen>
 
+#include "conjugate_gradient.h"
 #include "random_problem.h"
 
 using namespace Eigen;
@@ -15,10 +17,28 @@ int main(int argc, char* argv[]) {
   size_t dim = std::stoi(argv[1]);
 
   MatrixXd A;
-  VectorXd x, b;
-  std::tie(A, x, b) = random_spd(dim);
-  std::cout << "x = " << x.transpose() << "\n"
-            << "r = " << (A * x - b).transpose() << "\n";
+  VectorXd x_true, x, b;
+
+  std::cout << "generating random problem...";
+  auto t_begin = std::chrono::steady_clock::now();
+  std::tie(A, x_true, b) = random_spd(dim);
+  std::cout << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_begin).count() << "ms\n";
+
+  x.resize(dim);
+  for (size_t i = 0; i < dim / 2; ++i)
+    x[i] = x_true[i] + 0.1;
+  std::cout << "computing using CG solver...";
+  t_begin = std::chrono::steady_clock::now();
+  conjugate_gradient cg_solver(A, b);
+  cg_solver.solve(x);
+  std::cout << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_begin).count() << "ms | "
+            << "error = " << (x - x_true).norm() << "\n";
+
+  std::cout << "computing using LDLT solver...";
+  t_begin = std::chrono::steady_clock::now();
+  x = A.ldlt().solve(b);
+  std::cout << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_begin).count() << "ms | "
+            << "error = " << (x - x_true).norm() << "\n";
 
   return 0;
 }
