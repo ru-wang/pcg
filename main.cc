@@ -24,9 +24,10 @@ int main(int argc, char* argv[]) {
   std::tie(A, x_true, b) = random_spd(dim);
   std::cout << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_begin).count() << "ms\n";
 
-  x.resize(dim);
-  for (size_t i = 0; i < dim / 2; ++i)
-    x[i] = x_true[i] + 0.1;
+  x = x_true;
+  x[0] += 1;
+  x[1] += 1;
+  x[2] += 1;
   std::cout << "computing using CG solver...";
   t_begin = std::chrono::steady_clock::now();
   conjugate_gradient cg_solver(A, b);
@@ -34,9 +35,15 @@ int main(int argc, char* argv[]) {
   std::cout << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_begin).count() << "ms | "
             << "error = " << (x - x_true).norm() << "\n";
 
-  std::cout << "computing using LDLT solver...";
+  std::cout << "computing using column pivot Householder QR solver...";
   t_begin = std::chrono::steady_clock::now();
-  x = A.ldlt().solve(b);
+  x = A.colPivHouseholderQr().solve(b);
+  std::cout << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_begin).count() << "ms | "
+            << "error = " << (x - x_true).norm() << "\n";
+
+  std::cout << "computing using full pivot Householder QR solver...";
+  t_begin = std::chrono::steady_clock::now();
+  x = A.colPivHouseholderQr().solve(b);
   std::cout << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_begin).count() << "ms | "
             << "error = " << (x - x_true).norm() << "\n";
 
