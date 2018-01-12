@@ -18,8 +18,7 @@ class conjugate_gradient : linear_solver {
     Eigen::VectorXd p_k = -r_k;
     double r_k_T_r_k = r_k.squaredNorm();
 
-    std::cout << std::scientific << std::setprecision(2)
-              << "A:\n" << A_ << "\n";
+    std::cout << std::scientific << std::setprecision(4);
 
     size_t k;
     for (k = 0; k < dim_; ++k) {
