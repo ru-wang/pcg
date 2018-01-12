@@ -2,6 +2,7 @@
 
 #include "linear_solver.h"
 
+#include <iomanip>
 #include <iostream>
 
 #include <Eigen/Eigen>
@@ -17,6 +18,9 @@ class conjugate_gradient : linear_solver {
     Eigen::VectorXd p_k = -r_k;
     double r_k_T_r_k = r_k.squaredNorm();
 
+    std::cout << std::scientific << std::setprecision(2)
+              << "A:\n" << A_ << "\n";
+
     size_t k;
     for (k = 0; k < dim_; ++k) {
       if (r_k_T_r_k < epsilon_)
@@ -26,6 +30,9 @@ class conjugate_gradient : linear_solver {
       double p_k_T_A_p_k = p_k.transpose() * A_p_k;
       double alpha_k = r_k_T_r_k / p_k_T_A_p_k;
 
+      std::cout << "[PCG] " << k << ":"
+                << "\np_k: {" << p_k.transpose() << " }";
+
       x += alpha_k * p_k;
       r_k += alpha_k * A_p_k;
 
@@ -33,14 +40,19 @@ class conjugate_gradient : linear_solver {
       double beta_k = r_k_1_T_r_k_1 / r_k_T_r_k;
       p_k = -r_k + beta_k * p_k;
 
+      std::cout << "\nA_p_k: {" << A_p_k.transpose() << " }"
+                << "\nr_k_T_r_k: " << r_k_T_r_k
+                << "\nalpha_k  : " << alpha_k
+                << "\nbeta_k   : " << beta_k << "\n {"
+                << x.transpose() << "}\n\n";
+
       r_k_T_r_k = r_k_1_T_r_k_1;
     }
-    std::cout << "[iters=" << k << "]";
   }
 
  private:
-  Eigen::MatrixXd A_;
-  Eigen::VectorXd b_;
+  const Eigen::MatrixXd A_;
+  const Eigen::VectorXd b_;
   size_t dim_;
   double epsilon_;
 };
