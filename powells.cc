@@ -1,3 +1,4 @@
+#include <chrono>
 #include <cmath>
 #include <functional>
 #include <iomanip>
@@ -45,17 +46,19 @@ int main() {
 
   };
 
-  std::cout << std::scientific << std::setprecision(2) << std::endl;
-
-  std::cout << std::setw(4) << "it"
+#ifndef NDEBUG
+  std::cout << std::scientific << std::setprecision(2)
+            << std::setw(4) << "it"
             << std::setw(12) << "cost"
             << std::setw(12) << "|gradient|"
             << std::setw(12) << "|step|"
             << std::setw(12) << "lambda"
             << std::setw(8) << "taken"
             << std::endl;
-
   std::cout << std::setw(60) << std::setfill('-') << "-" << std::setfill(' ') << std::endl;
+#endif
+
+  auto t_begin = std::chrono::steady_clock::now();
 
   residual();
   jacobian();
@@ -63,6 +66,7 @@ int main() {
   double f_old = f.squaredNorm() / 2;
   auto init_f = f_old;
 
+#ifndef NDEBUG
   std::cout << std::setw(4) << 0
             << std::setw(12) << f_old
             << std::setw(12) << " "
@@ -70,9 +74,12 @@ int main() {
             << std::setw(12) << " "
             << std::setw(8) << " "
             << std::endl;
+#endif
 
   for (size_t it = 1; it <= 15; ++it) {
+#ifndef NDEBUG
     std::cout << std::setw(4) << it;
+#endif
 
     g = J.transpose() * f;
     H = J.transpose() * J;
@@ -83,41 +90,55 @@ int main() {
     Matrix4d A = H;
     Vector4d b = -g;
 
+#ifndef NDEBUG
     std::cout << std::setprecision(4)
               << "\n________________________________________\n"
               << A << "\n\n"
               << b.transpose()
               << "\n________________________________________\n";
+#endif
 
     VectorXd dx = VectorXd::Zero(4);
     conjugate_gradient cg_solver(A, b);
     cg_solver.solve(dx);
     x += dx;
 
+#ifndef NDEBUG
     std::cout << dx.transpose() << "\n"
               << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << std::endl;
+#endif
 
     residual();
     jacobian();
     double f_new = f.squaredNorm() / 2;
+
+#ifndef NDEBUG
     std::cout << std::setw(12) << f_new
               << std::setw(12) << g.norm() / 2
               << std::setw(12) << dx.norm()
               << std::setw(12) << lambda;
+#endif
 
     if (f_new < f_old) {
+#ifndef NDEBUG
       std::cout << std::setw(8) << "yes" << std::endl;
+#endif
       lambda /= 10;
       f_old = f_new;
     } else {
+#ifndef NDEBUG
       std::cout << std::setw(8) << "no" << std::endl;
+#endif
       lambda *= 10;
       x -= dx;
     }
   }
+  auto t_end = std::chrono::steady_clock::now();
+  auto duration = std::chrono::duration<double, std::milli>(t_end - t_begin);
 
-  std::cout << "\nX: [ " << init_X.transpose() << " ] ==> [ " << x.transpose() << " ]\n"
-            << "cost: " << init_f << " ==> " << f_old << "\n" << std::endl;
+  std::cout << "time: " << duration.count() << "ms\n"
+            << "X: [ " << init_X.transpose() << " ] ==> [ " << x.transpose() << " ]\n"
+            << "cost: " << init_f << " ==> " << f_old << std::endl;
 
   return 0;
 }
