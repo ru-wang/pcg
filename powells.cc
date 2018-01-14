@@ -11,29 +11,45 @@
 using namespace Eigen;
 
 int main() {
+  constexpr unsigned K = 100;
+
   const double sqrt5 = sqrt(5);
   const double sqrt10 = sqrt(10);
 
-  Vector4d x = Vector4d(3, -1, 0, 1);
-  auto& x1 = x[0];
-  auto& x2 = x[1];
-  auto& x3 = x[2];
-  auto& x4 = x[3];
+  VectorXd x, f, g;
+  MatrixXd J, H;
+  x.resize(4 * K, 1);
+  f.resize(4 * K, 1);
+  g.resize(4 * K, 1);
+  J.resize(4 * K, 4 * K);
+  H.resize(4 * K, 4 * K);
+  for (unsigned k = 0; k < K; ++k)
+    x.block<4, 1>(k * 4, 0) = Vector4d(3, -1, 0, 1);
 
-  auto init_X = x;
+  auto init_x = x;
 
-  Vector4d f, g;
-  Matrix4d J, H;
-
-  std::function<void()> residual = [=, &f, &x1, &x2, &x3, &x4]() {
-    f <<             x1 + 10*x2,
-                sqrt5*(x3 - x4),
-              pow(x2 - 2*x3, 2),
-         sqrt10*pow(x1 - x4, 2);
+  std::function<void(unsigned, double, double, double, double, VectorXd&)>
+  residual = [sqrt5, sqrt10](unsigned k,
+                             double x1,
+                             double x2,
+                             double x3,
+                             double x4,
+                             VectorXd& f) {
+    f.block<4, 1>(k * 4, 0) <<             x1 + 10*x2,
+                                      sqrt5*(x3 - x4),
+                                    pow(x2 - 2*x3, 2),
+                               sqrt10*pow(x1 - x4, 2);
   };
 
-  std::function<void()> jacobian = [=, &J, &x1, &x2, &x3, &x4] {
-    J <<                  1,            10,              0,                   0,
+  std::function<void(unsigned, double, double, double, double, MatrixXd&)>
+  jacobian = [sqrt5, sqrt10](unsigned k,
+                             double x1,
+                             double x2,
+                             double x3,
+                             double x4,
+                             MatrixXd& J) {
+  J.block<4, 4>(k * 4, k * 4)
+      <<                  1,            10,              0,                   0,
                           0,             0,          sqrt5,              -sqrt5,
                           0, 2*(x2 - 2*x3), -4*(x2 - 2*x3),                   0,
          2*sqrt10*(x1 - x4),             0,              0, -2*sqrt10*(x1 - x4);
@@ -60,8 +76,16 @@ int main() {
 
   auto t_begin = std::chrono::steady_clock::now();
 
-  residual();
-  jacobian();
+  for (unsigned k = 0; k < K; ++k) {
+    residual(k, x[k * 4 + 0],
+                x[k * 4 + 1],
+                x[k * 4 + 2],
+                x[k * 4 + 3], f);
+    jacobian(k, x[k * 4 + 0],
+                x[k * 4 + 1],
+                x[k * 4 + 2],
+                x[k * 4 + 3], J);
+  }
   double lambda = 1e-4;
   double f_old = f.squaredNorm() / 2;
   auto init_f = f_old;
@@ -76,7 +100,7 @@ int main() {
             << std::endl;
 #endif
 
-  for (size_t it = 1; it <= 15; ++it) {
+  for (unsigned it = 1; it <= 15; ++it) {
 #ifndef NDEBUG
     std::cout << std::setw(4) << it;
 #endif
@@ -87,8 +111,8 @@ int main() {
     auto diag = H.diagonal().asDiagonal();
     H += lambda * diag;
 
-    Matrix4d A = H;
-    Vector4d b = -g;
+    auto A = H;
+    auto b = -g;
 
 #ifndef NDEBUG
     std::cout << std::setprecision(4)
@@ -98,9 +122,10 @@ int main() {
               << "\n________________________________________\n";
 #endif
 
-    VectorXd dx = VectorXd::Zero(4);
+    VectorXd dx = VectorXd::Zero(4 * K);
     conjugate_gradient cg_solver(A, b);
     cg_solver.solve(dx);
+//    dx = A.ldlt().solve(b);
     x += dx;
 
 #ifndef NDEBUG
@@ -108,8 +133,16 @@ int main() {
               << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << std::endl;
 #endif
 
-    residual();
-    jacobian();
+    for (unsigned k = 0; k < K; ++k) {
+      residual(k, x[k * 4 + 0],
+                  x[k * 4 + 1],
+                  x[k * 4 + 2],
+                  x[k * 4 + 3], f);
+      jacobian(k, x[k * 4 + 0],
+                  x[k * 4 + 1],
+                  x[k * 4 + 2],
+                  x[k * 4 + 3], J);
+    }
     double f_new = f.squaredNorm() / 2;
 
 #ifndef NDEBUG
@@ -137,7 +170,6 @@ int main() {
   auto duration = std::chrono::duration<double, std::milli>(t_end - t_begin);
 
   std::cout << "time: " << duration.count() << "ms\n"
-            << "X: [ " << init_X.transpose() << " ] ==> [ " << x.transpose() << " ]\n"
             << "cost: " << init_f << " ==> " << f_old << std::endl;
 
   return 0;
