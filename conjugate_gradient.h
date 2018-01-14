@@ -18,7 +18,8 @@ class conjugate_gradient : linear_solver {
   virtual void solve(Eigen::VectorXd& x) override {
     Eigen::VectorXd r_k = A_ * x - b_;
     Eigen::VectorXd p_k = -r_k;
-    double r_k_T_r_k = r_k.squaredNorm();
+    double r_0_T_r_0 = r_k.squaredNorm();
+    double r_k_T_r_k = r_0_T_r_0;
 
 #ifndef NDEBUG
     std::cout << std::scientific << std::setprecision(4);
@@ -41,7 +42,7 @@ class conjugate_gradient : linear_solver {
       double r_k_1_T_r_k_1 = r_k.squaredNorm();
       double beta_k = r_k_1_T_r_k_1 / r_k_T_r_k;
 
-      if (beta_k < 1e-7)
+      if (r_k_1_T_r_k_1 / r_0_T_r_0 < 1e-7)
         break;
 
       p_k = -r_k + beta_k * p_k;
