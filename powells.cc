@@ -1,6 +1,5 @@
 #include <chrono>
 #include <cmath>
-#include <functional>
 #include <iomanip>
 #include <iostream>
 
@@ -23,7 +22,6 @@ constexpr double gradient_tolerance = 1e-10;
 constexpr double init_lambda = 1e-4;
 constexpr double min_lambda = 1e-16;
 constexpr double max_lambda = 1e32;
-
 
 void residual(unsigned k, double x1, double x2, double x3, double x4, VectorXd& f) {
   f.block<4, 1>(k * 4, 0) <<             x1 + 10*x2,
@@ -94,11 +92,8 @@ int main() {
     VectorXd diag = H.diagonal();
     H += (lambda * diag).asDiagonal();
 
-    auto A = H;
-    auto b = -g;
-
     VectorXd dx = VectorXd::Zero(4 * K);
-    conjugate_gradient cg_solver(A, b);
+    conjugate_gradient cg_solver(H, -g);
     unsigned pcg_steps = cg_solver.solve(dx);
     x += dx;
 
@@ -122,7 +117,7 @@ int main() {
               << "f=" << f_old << "-->" << f_new
               << " |f_change|/f=" << f_change_ratio
               << " lambda=" << lambda
-              << " determinant=" << A.determinant() << "\n";
+              << " determinant=" << H.determinant() << "\n";
 
 #ifndef NDEBUG_LM
     std::cout << std::setw(12) << f_new
@@ -157,6 +152,7 @@ int main() {
       x -= dx;
     }
   }
+
   auto t_end = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration<double, std::milli>(t_end - t_begin);
 
