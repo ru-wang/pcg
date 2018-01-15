@@ -4,5 +4,5 @@
 
 class linear_solver {
  public:
-  virtual void solve(Eigen::VectorXd& x) = 0;
+  virtual unsigned solve(Eigen::VectorXd& x) = 0;
 };
