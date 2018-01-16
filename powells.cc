@@ -17,8 +17,9 @@ const double sqrt10 = sqrt(10);
 constexpr unsigned K = 1;
 
 constexpr unsigned max_lm_iteratioins = 50;
-constexpr double function_tolerance = 1e-6;
-constexpr double gradient_tolerance = 1e-10;
+constexpr double function_tolerance = 1e-12;
+constexpr double function_change_tolerance = 1e-6;
+constexpr double variable_change_tolerance = 1e-8;
 constexpr double init_lambda = 1e-4;
 constexpr double min_lambda = 1e-16;
 constexpr double max_lambda = 1e32;
@@ -95,29 +96,33 @@ int main() {
     VectorXd dx = VectorXd::Zero(4 * K);
     conjugate_gradient cg_solver(H, -g);
     unsigned pcg_steps = cg_solver.solve(dx);
-    x += dx;
 
-    if (dx.lpNorm<Eigen::Infinity>() <= gradient_tolerance) {
+    if (dx.norm() <= (x.norm() + variable_change_tolerance) * variable_change_tolerance)
+      break;
+
+    x += dx;
+    for (unsigned k = 0; k < K; ++k) {
+      residual(k, x[k*4+0], x[k*4+1], x[k*4+2], x[k*4+3], f);
+      jacobian(k, x[k*4+0], x[k*4+1], x[k*4+2], x[k*4+3], J);
+    }
+    double f_new = f.squaredNorm() / 2;
+
+    if (f_new <= function_tolerance) {
 #ifndef NDEBUG_LM
       std::cout << std::endl;
 #endif
       break;
     }
 
-    for (unsigned k = 0; k < K; ++k) {
-      residual(k, x[k*4+0], x[k*4+1], x[k*4+2], x[k*4+3], f);
-      jacobian(k, x[k*4+0], x[k*4+1], x[k*4+2], x[k*4+3], J);
-    }
-    double f_new = f.squaredNorm() / 2;
-    double f_change_ratio = std::abs(f_new - f_old) / f_old;
-
     std::cout << std::scientific << std::setprecision(2)
               << "\t[LM " << it << "]\t"
               << "<PCG=" << pcg_steps << "/" << dx.rows() << ">\t"
               << "f=" << f_old << "-->" << f_new
-              << " |f_change|/f=" << f_change_ratio
+              << " f_change=" << f_new - f_old
               << " lambda=" << lambda
               << " determinant=" << H.determinant() << "\n";
+
+    double f_change_ratio = std::abs(f_new - f_old) / f_old;
 
 #ifndef NDEBUG_LM
     std::cout << std::setw(12) << f_new
@@ -127,7 +132,7 @@ int main() {
               << std::setw(12) << lambda;
 #endif
 
-    if (f_change_ratio <= function_tolerance) {
+    if (f_change_ratio <= function_change_tolerance) {
 #ifndef NDEBUG_LM
       std::cout << std::endl;
 #endif
@@ -138,7 +143,7 @@ int main() {
 #ifndef NDEBUG_LM
       std::cout << std::setw(8) << "yes" << std::endl;
 #endif
-      lambda *= 0.3;
+      lambda *= 0.1;
       if (lambda < min_lambda)
         lambda = min_lambda;
       f_old = f_new;
@@ -146,7 +151,7 @@ int main() {
 #ifndef NDEBUG_LM
       std::cout << std::setw(8) << "no" << std::endl;
 #endif
-      lambda *= 3;
+      lambda *= 10;
       if (lambda > max_lambda)
         lambda = max_lambda;
       x -= dx;

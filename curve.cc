@@ -87,8 +87,9 @@ const auto data = std::experimental::make_array(
 constexpr unsigned num_observations = 67;
 
 constexpr unsigned max_lm_iteratioins = 50;
-constexpr double function_tolerance = 1e-8;
-constexpr double gradient_tolerance = 1e-10;
+constexpr double function_tolerance = 1e-12;
+constexpr double function_change_tolerance = 1e-6;
+constexpr double variable_change_tolerance = 1e-8;
 constexpr double init_lambda = 1e-4;
 constexpr double min_lambda = 1e-16;
 constexpr double max_lambda = 1e32;
@@ -146,26 +147,28 @@ int main() {
     VectorXd dx = VectorXd::Zero(2);
     conjugate_gradient cg_solver(H, -g);
     unsigned pcg_steps = cg_solver.solve(dx);
-//    dx = H.llt().solve(-g);
-    m += dx[0];
-    c += dx[1];
 
-    if (dx.lpNorm<Eigen::Infinity>() <= gradient_tolerance)
+    if (dx.norm() <= (std::sqrt(m * m + c * c) + variable_change_tolerance) * variable_change_tolerance)
       break;
 
+    m += dx[0];
+    c += dx[1];
     compute(m, c, f, J);
     double f_new = f.squaredNorm() / 2;
-    double f_change_ratio = std::abs(f_new - f_old) / f_old;
+
+    if (f_new <= function_tolerance)
+      break;
 
     std::cout << std::scientific << std::setprecision(6)
               << "\t[LM " << it << "]\t"
               << "<PCG=" << pcg_steps << "/" << dx.rows() << ">\t"
               << "f=" << f_old << "-->" << f_new
-              << " |f_change|/f=" << f_change_ratio
+              << " f_change=" << f_new - f_old
               << " lambda=" << lambda
               << " determinant=" << H.determinant() << "\n";
 
-    if (f_change_ratio <= function_tolerance)
+    double f_change_ratio = std::abs(f_new - f_old) / f_old;
+    if (f_change_ratio <= function_change_tolerance)
       break;
 
     if (f_new < f_old) {
