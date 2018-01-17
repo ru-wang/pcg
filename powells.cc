@@ -14,10 +14,11 @@ namespace {
 const double sqrt5 = sqrt(5);
 const double sqrt10 = sqrt(10);
 
-constexpr unsigned K = 1;
+constexpr unsigned K = 200;
 
 constexpr unsigned max_lm_iteratioins = 50;
 constexpr double function_tolerance = 1e-12;
+constexpr double gradient_tolerance = 1e-10;
 constexpr double function_change_tolerance = 1e-6;
 constexpr double variable_change_tolerance = 1e-8;
 constexpr double init_lambda = 1e-4;
@@ -100,7 +101,12 @@ int main() {
     if (dx.norm() <= (x.norm() + variable_change_tolerance) * variable_change_tolerance)
       break;
 
+    VectorXd x_old = x;
     x += dx;
+
+    if ((x - x_old).lpNorm<Eigen::Infinity>() <= gradient_tolerance)
+      break;
+
     for (unsigned k = 0; k < K; ++k) {
       residual(k, x[k*4+0], x[k*4+1], x[k*4+2], x[k*4+3], f);
       jacobian(k, x[k*4+0], x[k*4+1], x[k*4+2], x[k*4+3], J);
@@ -114,13 +120,13 @@ int main() {
       break;
     }
 
-    std::cout << std::scientific << std::setprecision(2)
-              << "\t[LM " << it << "]\t"
-              << "<PCG=" << pcg_steps << "/" << dx.rows() << ">\t"
-              << "f=" << f_old << "-->" << f_new
-              << " f_change=" << f_new - f_old
-              << " lambda=" << lambda
-              << " determinant=" << H.determinant() << "\n";
+//    std::cout << std::scientific << std::setprecision(2)
+//              << "\t[LM " << it << "]\t"
+//              << "<PCG=" << pcg_steps << "/" << dx.rows() << ">\t"
+//              << "f=" << f_old << "-->" << f_new
+//              << " f_change=" << f_new - f_old
+//              << " lambda=" << lambda
+//              << " determinant=" << H.determinant() << "\n";
 
     double f_change_ratio = std::abs(f_new - f_old) / f_old;
 
@@ -143,7 +149,7 @@ int main() {
 #ifndef NDEBUG_LM
       std::cout << std::setw(8) << "yes" << std::endl;
 #endif
-      lambda *= 0.1;
+      lambda /= 3;
       if (lambda < min_lambda)
         lambda = min_lambda;
       f_old = f_new;
@@ -151,7 +157,7 @@ int main() {
 #ifndef NDEBUG_LM
       std::cout << std::setw(8) << "no" << std::endl;
 #endif
-      lambda *= 10;
+      lambda *= 3;
       if (lambda > max_lambda)
         lambda = max_lambda;
       x -= dx;
@@ -162,7 +168,7 @@ int main() {
   auto duration = std::chrono::duration<double, std::milli>(t_end - t_begin);
 
   std::cout << "time: " << duration.count() << "ms\n"
-            << "   x: {" << init_x.transpose() << " }==>{" << x.transpose() << " }\n"
+//            << "   x: {" << init_x.transpose() << " }==>{" << x.transpose() << " }\n"
             << "cost: " << init_f << " ==> " << f_old << std::endl;
 
   return 0;

@@ -1,10 +1,10 @@
 all: curve powells
 
-curve: linear_solver.h conjugate_gradient.h curve.cc
+curve: linear_solver.h conjugate_gradient.h curve.cc makefile
 	g++ curve.cc -o curve -std=c++17 -isystem /usr/include/eigen3 \
 		-Ofast -mavx -mfma -DNDEBUG_LM -DNDEBUG_CG
 
-powells: linear_solver.h conjugate_gradient.h powells.cc
+powells: linear_solver.h conjugate_gradient.h powells.cc makefile
 	g++ powells.cc -o powells -std=c++17 -isystem /usr/include/eigen3 \
 		-Ofast -mavx -mfma -DNDEBUG_LM -DNDEBUG_CG
 
