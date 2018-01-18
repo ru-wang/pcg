@@ -6,14 +6,14 @@
 
 #include <Eigen/Eigen>
 
-class preconditioned_conjugate_gradient : linear_solver {
+class preconditioned_conjugate_gradient : public linear_solver {
  public:
   preconditioned_conjugate_gradient(
       const Eigen::MatrixXd& A,
       const Eigen::VectorXd& b)
       : A_(A), b_(b), dim_(b.rows()), epsilon_(1e-24) {}
 
-  virtual void solve(Eigen::VectorXd& x) override {
+  virtual unsigned solve(Eigen::VectorXd& x) override {
     compute_jacobi_preconditioner();
 
     Eigen::VectorXd r_k = A_ * x - b_;
@@ -24,7 +24,7 @@ class preconditioned_conjugate_gradient : linear_solver {
 
     size_t k;
     for (k = 0; k < dim_; ++k) {
-      if (r_k_T_y_k / r_0_T_y_0 < epsilon_)
+      if (r_k_T_y_k / r_0_T_y_0 <= epsilon_)
         break;
 
       Eigen::VectorXd A_p_k = A_ * p_k;
@@ -42,13 +42,13 @@ class preconditioned_conjugate_gradient : linear_solver {
 
       r_k_T_y_k = r_k_1_T_y_k_1;
     }
-    std::cout << "[iters=" << k << "]";
+
+    return k == dim_ ? dim_ : k + 1;
   }
 
  private:
   void compute_jacobi_preconditioner() {
-    Eigen::VectorXd D = A_.diagonal();
-    M_inv_ = D.asDiagonal() * D;
+    M_inv_ = A_.diagonal();
   }
 
   Eigen::MatrixXd A_;

@@ -3,12 +3,14 @@
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <tuple>
 #include <experimental/array>
 
 #include <Eigen/Eigen>
 
 #include "conjugate_gradient.h"
+#include "preconditioned_conjugate_gradient.h"
 
 using namespace Eigen;
 
@@ -126,7 +128,7 @@ void compute(const double m, const double c,
 
 }
 
-int main() {
+int main(int argc, char* argv[]) {
   double m = 0;
   double c = 0;
   MatrixXd J(num_observations, 2), f(num_observations, 1), g, H;
@@ -145,8 +147,12 @@ int main() {
     H += (lambda * diag).asDiagonal();
 
     VectorXd dx = VectorXd::Zero(2);
-    conjugate_gradient cg_solver(H, -g);
-    unsigned pcg_steps = cg_solver.solve(dx);
+    std::unique_ptr<linear_solver> cg_solver;
+    if (argc > 1 && std::strcmp(argv[1], "-p"))
+      cg_solver.reset(new preconditioned_conjugate_gradient(H, -g));
+    else
+      cg_solver.reset(new conjugate_gradient(H, -g));
+    unsigned pcg_steps = cg_solver->solve(dx);
 
     if (dx.norm() <= (std::sqrt(m * m + c * c) + variable_change_tolerance) * variable_change_tolerance)
       break;
@@ -164,8 +170,7 @@ int main() {
               << "<PCG=" << pcg_steps << "/" << dx.rows() << ">\t"
               << "f=" << f_old << "-->" << f_new
               << " f_change=" << f_new - f_old
-              << " lambda=" << lambda
-              << " determinant=" << H.determinant() << "\n";
+              << " lambda=" << lambda << "\n";
 
     double f_change_ratio = std::abs(f_new - f_old) / f_old;
     if (f_change_ratio <= function_change_tolerance)

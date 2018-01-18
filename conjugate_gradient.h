@@ -9,7 +9,7 @@
 
 #include <Eigen/Eigen>
 
-class conjugate_gradient : linear_solver {
+class conjugate_gradient : public linear_solver {
  public:
   conjugate_gradient(const Eigen::MatrixXd& A,
                      const Eigen::VectorXd& b)
@@ -42,7 +42,7 @@ class conjugate_gradient : linear_solver {
       double r_k_1_T_r_k_1 = r_k.squaredNorm();
       double beta_k = r_k_1_T_r_k_1 / r_k_T_r_k;
 
-      if (r_k_1_T_r_k_1 / r_0_T_r_0 < epsilon_)
+      if (r_k_1_T_r_k_1 / r_0_T_r_0 <= epsilon_)
         break;
 
       p_k = -r_k + beta_k * p_k;

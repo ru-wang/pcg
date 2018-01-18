@@ -6,6 +6,7 @@
 #include <Eigen/Eigen>
 
 #include "conjugate_gradient.h"
+#include "preconditioned_conjugate_gradient.h"
 
 using namespace Eigen;
 
@@ -43,7 +44,7 @@ void jacobian(unsigned k, double x1, double x2, double x3, double x4, MatrixXd& 
 
 }
 
-int main() {
+int main(int argc, char* argv[]) {
   VectorXd x(4 * K), f(4 * K), g(4 * K);
   MatrixXd J(4 * K, 4 * K), H(4 * K, 4 * K);
   for (unsigned k = 0; k < K; ++k)
@@ -95,8 +96,12 @@ int main() {
     H += (lambda * diag).asDiagonal();
 
     VectorXd dx = VectorXd::Zero(4 * K);
-    conjugate_gradient cg_solver(H, -g);
-    unsigned pcg_steps = cg_solver.solve(dx);
+    std::unique_ptr<linear_solver> cg_solver;
+    if (argc > 1 && std::strcmp(argv[1], "-p"))
+      cg_solver.reset(new preconditioned_conjugate_gradient(H, -g));
+    else
+      cg_solver.reset(new conjugate_gradient(H, -g));
+    unsigned pcg_steps = cg_solver->solve(dx);
 
     if (dx.norm() <= (x.norm() + variable_change_tolerance) * variable_change_tolerance)
       break;
@@ -120,13 +125,12 @@ int main() {
       break;
     }
 
-//    std::cout << std::scientific << std::setprecision(2)
-//              << "\t[LM " << it << "]\t"
-//              << "<PCG=" << pcg_steps << "/" << dx.rows() << ">\t"
-//              << "f=" << f_old << "-->" << f_new
-//              << " f_change=" << f_new - f_old
-//              << " lambda=" << lambda
-//              << " determinant=" << H.determinant() << "\n";
+    std::cout << std::scientific << std::setprecision(2)
+              << "\t[LM " << it << "]\t"
+              << "<PCG=" << pcg_steps << "/" << dx.rows() << ">\t"
+              << "f=" << f_old << "-->" << f_new
+              << " f_change=" << f_new - f_old
+              << " lambda=" << lambda << "\n";
 
     double f_change_ratio = std::abs(f_new - f_old) / f_old;
 
